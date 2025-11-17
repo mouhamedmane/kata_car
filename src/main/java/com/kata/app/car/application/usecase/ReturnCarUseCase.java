@@ -26,7 +26,7 @@ public class ReturnCarUseCase {
 	}
 
 	public ReturnLeaseResponse returnByLeaseId(ReturnCarCommand command) {
-		Lease lease = leaseRepository.findById(command.leaseId)
+		Lease lease = leaseRepository.findByIdForUpdate(command.leaseId)
 			.orElseThrow(() -> new LeaseNotFoundException("Lease %s not found".formatted(command.leaseId)));
 
 		if (lease.getStatus() != LeaseStatus.ACTIVE) {

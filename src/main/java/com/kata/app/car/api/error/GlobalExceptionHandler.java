@@ -7,12 +7,14 @@ import com.kata.app.car.application.exception.LeaseNotActiveException;
 import com.kata.app.car.application.exception.LeaseNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.validation.ConstraintViolationException;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -49,14 +51,42 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler({ MethodArgumentNotValidException.class, ConstraintViolationException.class })
 	public ResponseEntity<ApiErrorResponse> handleValidation(Exception ex) {
+		String details;
+		if (ex instanceof MethodArgumentNotValidException manve) {
+			details = manve.getBindingResult().getFieldErrors().stream()
+				.map(this::formatFieldError)
+				.collect(Collectors.joining("; "));
+			if (details.isEmpty()) {
+				details = "Invalid request payload";
+			}
+		} else if (ex instanceof ConstraintViolationException cve) {
+			details = cve.getConstraintViolations().stream()
+				.map(v -> v.getPropertyPath() + ": " + v.getMessage())
+				.collect(Collectors.joining("; "));
+			if (details.isEmpty()) {
+				details = "Constraint violation";
+			}
+		} else {
+			details = "Validation error";
+		}
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-			.body(new ApiErrorResponse("VALIDATION_ERROR", ex.getMessage()));
+			.body(new ApiErrorResponse("VALIDATION_ERROR", details));
 	}
 
 	@ExceptionHandler({ MethodArgumentTypeMismatchException.class, IllegalArgumentException.class })
 	public ResponseEntity<ApiErrorResponse> handleBadRequest(Exception ex) {
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-			.body(new ApiErrorResponse("BAD_REQUEST", ex.getMessage()));
+			.body(new ApiErrorResponse("BAD_REQUEST", "Invalid request"));
+	}
+
+	@ExceptionHandler(IllegalStateException.class)
+	public ResponseEntity<ApiErrorResponse> handleIllegalState(IllegalStateException ex) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+			.body(new ApiErrorResponse("ILLEGAL_STATE", "Operation not allowed in current state"));
+	}
+
+	private String formatFieldError(FieldError error) {
+		return error.getField() + ": " + (error.getDefaultMessage() != null ? error.getDefaultMessage() : "invalid");
 	}
 }
 

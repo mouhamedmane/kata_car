@@ -26,6 +26,29 @@ class LeaseTest {
 	}
 
 	@Test
+	void start_shouldFail_whenEndDatePlannedBeforeProvidedStartDate() {
+		UUID carId = UUID.randomUUID();
+		UUID customerId = UUID.randomUUID();
+		LocalDate start = LocalDate.now();
+		LocalDate endDatePlanned = start.minusDays(1);
+
+		assertThatThrownBy(() -> Lease.start(carId, customerId, start, endDatePlanned))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("endDatePlanned");
+	}
+
+	@Test
+	void start_shouldFail_whenEndDatePlannedBeforeTodayAndStartDateOmitted() {
+		UUID carId = UUID.randomUUID();
+		UUID customerId = UUID.randomUUID();
+		LocalDate endDatePlanned = LocalDate.now().minusDays(1);
+
+		assertThatThrownBy(() -> Lease.start(carId, customerId, null, endDatePlanned))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("endDatePlanned");
+	}
+
+	@Test
 	void returnLease_shouldSetStatusReturned_andSetReturnDate() {
 		UUID carId = UUID.randomUUID();
 		UUID customerId = UUID.randomUUID();

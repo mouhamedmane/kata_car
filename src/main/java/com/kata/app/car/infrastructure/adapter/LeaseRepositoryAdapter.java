@@ -26,6 +26,11 @@ public class LeaseRepositoryAdapter implements LeaseRepository {
 	}
 
 	@Override
+	public Optional<Lease> findByIdForUpdate(UUID id) {
+		return springDataLeaseRepository.findByIdForUpdate(id).map(LeaseMapper::toDomain);
+	}
+
+	@Override
 	public Optional<Lease> findActiveByCarId(UUID carId) {
 		return springDataLeaseRepository.findByCarIdAndStatus(carId, LeaseStatus.ACTIVE)
 			.map(LeaseMapper::toDomain);

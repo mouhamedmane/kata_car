@@ -30,6 +30,9 @@ public class Lease {
 	public static Lease start(UUID carId, UUID customerId, LocalDate startDate, LocalDate endDatePlanned) {
 		UUID leaseId = UUID.randomUUID();
 		LocalDate effectiveStart = startDate != null ? startDate : LocalDate.now();
+		if (endDatePlanned != null && endDatePlanned.isBefore(effectiveStart)) {
+			throw new IllegalArgumentException("endDatePlanned cannot be before startDate");
+		}
 		return new Lease(leaseId, carId, customerId, effectiveStart, endDatePlanned, null, LeaseStatus.ACTIVE);
 	}
 

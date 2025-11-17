@@ -1,256 +1,358 @@
 # Carrefour Java Kata — Location de voitures (MVP)
 
-## 1) Objectif
+Ce dépôt contient une implémentation fonctionnelle (MVP) d’un service de location de voitures, destinée à un exercice technique à réaliser en temps limité. L’objectif est de démontrer des choix d’architecture, de conception, de tests et de respect des contraintes.
 
-Ce projet est un kata dont le but est d’implémenter un mini-système de location de voitures en Java 21. Le périmètre visé ici est le MVP strict, sans fonctionnalités bonus.
+## Rappel du cahier des charges
 
-- En tant que client, je peux louer une voiture.
-- En tant que client, je peux rendre une voiture louée.
+- **Objectif**
+  - **MVP** permettant à un client de louer une voiture.
+  - **MVP** permettant à un client de retourner une voiture louée.
+- **Contraintes**
+  - Java 21.
+  - Fournir un `README.md` clair et détaillé.
+  - La solution doit embarquer de la logique métier (pas une simple « passerelle »).
+  - Pas de critères d’acceptation fournis : à définir et démontrer via l’analyse et les tests.
+- **Livraison**
+  - Code accessible dans un dépôt Git.
+  - Informer de la fin via le canal requis.
+- **Évaluation**
+  - Qualité des choix d’implémentation, architecture, techniques, respect des contraintes.
+  - Le code est personnel et doit pouvoir être défendu en entretien.
 
-Ce dépôt fournit un squelette Spring Boot. Le code métier et les endpoints REST du MVP sont à implémenter selon la conception décrite ci-dessous.
+## Pile technique et prérequis
 
+- **Langage et runtime**
+  - Java 21
+  - Maven Wrapper (inclus: `mvnw`, `mvnw.cmd`)
+- **Frameworks et dépendances clés** (voir `pom.xml`)
+  - Spring Boot 3.3.5 (Web, Validation, Data JPA)
+  - Base de données en mémoire H2 (runtime)
+  - Tests: Spring Boot Test, JUnit 5, Mockito (via starter test)
+- **Configuration applicative** (`src/main/resources/application.properties`)
+  - H2 en mémoire: `jdbc:h2:mem:carrental;DB_CLOSE_DELAY=-1`
+  - DDL: `spring.jpa.hibernate.ddl-auto=update`
+  - Console H2: `http://localhost:8080/h2-console` (login `sa`, mot de passe vide)
 
-## 2) Prérequis
+## Démarrage rapide
 
-- Java 21 (JDK 21)
-- Maven 3.9+
-- Git (pour la gestion de versions)
-
-
-## 3) Pile technique
-
-- Spring Boot 3.3.5
-- Spring Web
-- Spring Data JPA
-- Validation Jakarta (Bean Validation)
-- H2 (base de données en mémoire pour le développement)
-- Tests: JUnit 5, Spring Boot Test
-
-Extrait pertinent du `pom.xml`:
-
-- `java.version=21`
-- Dépendances: `spring-boot-starter-web`, `spring-boot-starter-data-jpa`, `spring-boot-starter-validation`, `h2`, `spring-boot-starter-test` (test)
-
-
-## 4) Décisions et hypothèses métier
-
-- Une voiture a 2 états: `AVAILABLE` ou `LEASED`.
-- Une voiture ne peut être louée que si elle est `AVAILABLE`.
-- Une voiture ne peut être rendue que si une location active existe pour elle.
-- Une location (`Lease`) référence un client et une voiture, avec une date de début, un statut `ACTIVE` puis `RETURNED` lors du retour.
-- `startDate` par défaut = date du jour si non fournie.
-- Simplifications: gestion client minimale (identifiant), pas de paiement, pas d’authentification.
-
-
-## 5) Critères d’acceptation (MVP)
-
-- Louer une voiture
-  - Si la voiture est `AVAILABLE`, création d’une `Lease` active et passage de la voiture à `LEASED`.
-  - Si la voiture est déjà `LEASED`, la demande est refusée (HTTP 409 ou 400 avec message clair).
-  - Données minimales: `carId`, `customerId`, `startDate` (facultatif).
-- Rendre une voiture
-  - Si une `Lease` active est trouvée, elle passe à `RETURNED` et la voiture redevient `AVAILABLE`.
-  - Sinon, réponse HTTP 404/400 avec message explicite.
-- Validation des entrées et messages d’erreur clairs pour les cas invalides.
-
-
-## 6) Architecture (DDD light / hexagonale)
-
-Organisation logique recommandée (à créer/compléter dans `src/main/java`):
-
-```
-com.kata.app.car
- ├─ api              # Adaptateurs d’entrée (REST) : controllers, DTO HTTP
- ├─ application      # Cas d’usage (use cases), DTO applicatifs, services applicatifs
- ├─ domain           # Modèle métier pur : entités, value objects, services de domaine, ports
- └─ infrastructure   # Adaptateurs techniques : JPA (entities, repos Spring Data), mappers, config
-```
-
-- Couche domain (métier, sans dépendances Spring):
-  - `Car` (id, plateNumber, status: AVAILABLE/LEASED)
-  - `Customer` (id, name)
-  - `Lease` (id, carId, customerId, startDate, returnDate?, status: ACTIVE/RETURNED)
-  - Ports (interfaces) de repository: `CarRepository`, `LeaseRepository`
-- Couche application (orchestration des règles):
-  - Use cases: `LeaseCarUseCase`, `ReturnCarUseCase`
-  - Commands/Responses pour l’API interne applicative
-- Couche api (REST):
-  - `LeaseController` avec endpoints décrits ci-dessous
-- Couche infrastructure (JPA/H2):
-  - Entités JPA, interfaces Spring Data, mappers Domain ⇄ JPA
-
-
-## 7) Contrat d’API REST (prévu)
-
-Note: les endpoints ci-dessous constituent la spécification fonctionnelle du MVP. Ils doivent être implémentés.
-
-- Créer une location (louer une voiture)
-  - `POST /api/leases`
-  - Request
-    ```json
-    {
-      "carId": "car-123",
-      "customerId": "customer-456",
-      "startDate": "2025-11-17"
-    }
-    ```
-  - Responses
-    - 201 CREATED
-      ```json
-      {
-        "leaseId": "lease-1",
-        "carId": "car-123",
-        "customerId": "customer-456",
-        "status": "ACTIVE",
-        "startDate": "2025-11-17"
-      }
-      ```
-    - 409 CONFLICT (voiture déjà louée) ou 400 BAD_REQUEST (données invalides)
-      ```json
-      {
-        "error": "CAR_ALREADY_LEASED",
-        "message": "Car car-123 is already leased."
-      }
-      ```
-
-- Retourner une voiture (clore la location)
-  - `POST /api/leases/{leaseId}/return`
-  - Request
-    ```json
-    {
-      "returnDate": "2025-11-19"
-    }
-    ```
-  - Responses
-    - 200 OK
-      ```json
-      {
-        "leaseId": "lease-1",
-        "carId": "car-123",
-        "customerId": "customer-456",
-        "status": "RETURNED",
-        "startDate": "2025-11-17",
-        "returnDate": "2025-11-19"
-      }
-      ```
-    - 404 NOT_FOUND / 400 BAD_REQUEST si aucune location active n’est trouvée
-
-- Convention d’erreur (recommandée)
-  ```json
-  {
-    "error": "CODE",
-    "message": "Description lisible"
-  }
-  ```
-
-
-## 8) Persistance et configuration
-
-Base de données recommandée pour le développement: H2 en mémoire.
-
-Ajouter au besoin dans `src/main/resources/application.properties`:
-
-```
-spring.datasource.url=jdbc:h2:mem:carrental;DB_CLOSE_DELAY=-1
-spring.datasource.driverClassName=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
-
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-
-# Console H2 (facultatif)
-spring.h2.console.enabled=true
-spring.h2.console.path=/h2-console
-```
-
-Schéma JPA attendu (indicatif):
-- `car` (id, plate_number, status)
-- `lease` (id, car_id, customer_id, start_date, return_date, status)
-
-
-## 9) Démarrage local
-
-- Build + tests
-  - `mvn clean verify`
-- Exécuter l’application
-  - `mvn spring-boot:run`
-- URL par défaut
+- **Exécuter l’application (Windows)**
+  - `mvnw.cmd spring-boot:run`
+- **Exécuter l’application (Linux/macOS)**
+  - `./mvnw spring-boot:run`
+- **Port par défaut**
   - `http://localhost:8080`
+- **Construire le JAR**
+  - `mvnw.cmd -DskipTests package`
+  - Lancer: `java -jar target/car-0.0.1-SNAPSHOT.jar`
+- **Lancer les tests**
+  - `mvnw.cmd test`
 
+## Conteneurisation (Docker)
 
-## 10) Tests
+Cette application inclut un `Dockerfile` multi-stage à la racine:
 
-- Lancer tous les tests: `mvn test`
-- À prévoir (MVP):
-  - Tests unitaires `LeaseCarUseCase` (succès, voiture déjà louée).
-  - Tests unitaires `ReturnCarUseCase` (succès, aucune location active).
-  - Éventuellement un test d’intégration REST minimal par endpoint.
+- Stage build: `maven:3.9.9-eclipse-temurin-21` (compile + package avec `-DskipTests`).
+- Stage runtime: `eclipse-temurin:21-jre` (utilisateur non-root `spring`).
 
+### Construire l’image
 
-## 11) Structure du dépôt
-
-Structure actuelle (principaux éléments):
-```
-com.kata.app.car
- ├─ api
- │   ├─ LeaseController.java
- │   ├─ dto/{LeaseCarRequest, LeaseCarResponse, ReturnCarRequest, ReturnCarResponse}
- │   └─ error/{GlobalExceptionHandler, ApiErrorResponse}
- ├─ application
- │   ├─ model/{LeaseCarCommand, ReturnCarCommand, LeaseResponse, ReturnLeaseResponse}
- │   ├─ usecase/{LeaseCarUseCase, ReturnCarUseCase}
- │   └─ exception/{CarNotFoundException, CustomerNotFoundException, LeaseNotFoundException, CarAlreadyLeasedException}
- ├─ domain
- │   ├─ model/{Car, Customer, Lease, CarStatus, LeaseStatus}
- │   └─ repository/{CarRepository, LeaseRepository, CustomerRepository}
- └─ infrastructure
-     ├─ jpa/entity/{CarEntity, LeaseEntity, CustomerEntity}
-     ├─ jpa/repository/{SpringDataCarRepository, SpringDataLeaseRepository, SpringDataCustomerRepository}
-     ├─ adapter/{CarRepositoryAdapter, LeaseRepositoryAdapter, CustomerRepositoryAdapter}
-     ├─ mapper/{CarMapper, LeaseMapper, CustomerMapper}
-     └─ config/{DataInitializer}
-
-Tests principaux:
-- `src/test/java/com/kata/app/car/domain/LeaseTest.java`
-- `src/test/java/com/kata/app/car/application/{LeaseCarUseCaseTest, ReturnCarUseCaseTest}.java`
-- `src/test/java/com/kata/app/car/api/LeaseControllerIT.java`
+```bash
+docker build -t kata-car:local .
 ```
 
+### Lancer le conteneur
 
-## 12) Conventions et bonnes pratiques
+```bash
+docker run --rm -p 8080:8080 --name kata-car kata-car:local
+```
 
-- Découpage par couches (api/application/domain/infrastructure) pour limiter les couplages.
-- Messages d’erreur clairs et statuts HTTP appropriés (201, 200, 400, 404, 409).
-- Validation d’entrée via Bean Validation.
-- Petits commits atomiques avec message explicite (ex: Conventional Commits: `feat: ...`, `fix: ...`, `test: ...`, `docs: ...`).
+Accès application: `http://localhost:8080`
 
+Console H2: `http://localhost:8080/h2-console`
 
-## 13) État du dépôt
+### Variables d’environnement utiles
 
-- MVP implémenté (domaine, use cases, API REST, validation, erreurs globales).
-- H2/JPA configurés et seed de données minimal.
+- `SPRING_PROFILES_ACTIVE` (défaut: `default`)
+- `JAVA_OPTS` pour options JVM (ex: mémoire)
+- `SERVER_PORT` pour changer le port d’écoute Spring Boot
 
+Exemple:
 
-## 14) Comment prouver le respect du MVP
+```bash
+docker run --rm -p 8081:8081 \
+  -e SPRING_PROFILES_ACTIVE=default \
+  -e SERVER_PORT=8081 \
+  -e JAVA_OPTS="-Xms256m -Xmx512m" \
+  --name kata-car kata-car:local
+```
 
-- Jeux de tests unitaires couvrant les règles métier (location/rendu et erreurs).
-- Exemples de requêtes HTTP (via cURL/Postman) qui démontrent les cas de succès et d’échec, par exemple:
-  - **Créer une location**
-    ```
-    curl -X POST http://localhost:8080/api/leases \
-      -H "Content-Type: application/json" \
-      -d '{"carId":"<uuid-car>", "customerId":"<uuid-client>"}'
-    ```
-  - **Rendre une voiture**
-    ```
-    curl -X POST http://localhost:8080/api/leases/<leaseId>/return \
-      -H "Content-Type: application/json" \
-      -d '{"returnDate":"2025-11-19"}'
-    ```
-- README à jour (présent) décrivant les hypothèses, l’API et la procédure de lancement.
+Notes:
 
+- L’image est multi-arch (basée sur Temurin 21). Sur Apple Silicon, pas d’option spéciale requise.
+- Le stockage H2 est en mémoire; les données sont perdues à l’arrêt du conteneur.
 
----
+## Architecture et organisation du code
 
-Pour toute question ou précision, documenter les décisions directement dans ce README afin d’assurer la cohérence fonctionnelle et technique du projet.
+- **Approche**: architecture hexagonale (ports/adaptateurs) inspirée DDD.
+- **Couches et responsabilités**
+  - **domain/**
+    - Modèles métiers immuables ou contrôlés: `Car`, `Customer`, `Lease`, enums `CarStatus`, `LeaseStatus`.
+    - Ports (interfaces) de persistance: `CarRepository`, `CustomerRepository`, `LeaseRepository`.
+    - Invariants métier et règles localisées dans le domaine (ex: transitions de statut, validations de dates).
+  - **application/**
+    - Cas d’usage transactionnels: `LeaseCarUseCase`, `ReturnCarUseCase`.
+    - Modèles d’E/S pour l’application: `LeaseCarCommand`, `LeaseResponse`, `ReturnCarCommand`, `ReturnLeaseResponse`.
+    - Exceptions applicatives: `CarNotFoundException`, `CustomerNotFoundException`, `LeaseNotFoundException`, `LeaseNotActiveException`, `CarAlreadyLeasedException`.
+  - **api/**
+    - Contrôleur REST: `LeaseController`.
+    - DTO d’API: `LeaseCarRequest`, `LeaseCarResponse`, `ReturnCarRequest`, `ReturnCarResponse`.
+    - Gestion globale des erreurs: `GlobalExceptionHandler` → codes HTTP cohérents + payload d’erreur uniforme (`ApiErrorResponse`).
+  - **infrastructure/**
+    - JPA Entities: `CarEntity`, `CustomerEntity`, `LeaseEntity`.
+    - Spring Data repositories: `SpringDataCarRepository`, `SpringDataCustomerRepository`, `SpringDataLeaseRepository` (avec verrous pessimistes sur les lectures critiques).
+    - Adapters des ports vers JPA: `CarRepositoryAdapter`, `CustomerRepositoryAdapter`, `LeaseRepositoryAdapter`.
+    - Mappers domaine ↔ JPA: `CarMapper`, `CustomerMapper`, `LeaseMapper`.
+    - `DataInitializer`: jeu de données minimal (3 voitures disponibles, 2 clients) au démarrage.
+
+### Pourquoi ces choix ?
+
+- **Hexagonal**: sépare le cœur métier des détails techniques (facilite tests, évolutivité, remplacements d’infra).
+- **Invariants dans le domaine**: garantit la cohérence métier indépendamment des contrôleurs et de l’ORM.
+- **Verrouillage pessimiste** (`@Lock(PESSIMISTIC_WRITE)`): évite les conflits de concurrence sur la location/retour.
+- **DTO dédiés**: contrat d’API clair et stable, découplé du domaine et de la persistance.
+
+## Règles métier (MVP)
+
+- **Louer une voiture**
+  - **Pré-conditions**
+    - La voiture existe.
+    - Le client existe.
+    - Aucune location active pour cette voiture (contrôle via `LeaseRepository.findActiveByCarId`).
+    - La voiture a le statut `AVAILABLE`.
+    - `startDate` est optionnelle → défaut: aujourd’hui.
+    - `endDatePlanned` est optionnelle mais ne peut pas être antérieure à `startDate`.
+  - **Actions**
+    - Création d’un `Lease` (statut `ACTIVE`).
+    - Passage de la `Car` au statut `LEASED`.
+    - Persistance de la location et de la voiture.
+  - **Résultat**
+    - HTTP 201 Created, header `Location: /api/leases/{leaseId}`.
+
+- **Retourner une voiture**
+  - **Pré-conditions**
+    - La location existe.
+    - La location est `ACTIVE`.
+    - `returnDate` est optionnelle → défaut: aujourd’hui.
+    - `returnDate` ne peut pas être antérieure à `startDate` de la location.
+  - **Actions**
+    - Clôture de la location (`RETURNED`, `returnDate` renseignée).
+    - Passage de la `Car` au statut `AVAILABLE`.
+    - Persistance de la location et de la voiture.
+  - **Résultat**
+    - HTTP 200 OK.
+
+## Critères d’acceptation (extraits)
+
+- **Louer une voiture disponible**
+  - Given une voiture au statut `AVAILABLE` et un client existant
+  - When j’appelle `POST /api/leases`
+  - Then je reçois 201 + un `leaseId`, la voiture passe à `LEASED`.
+- **Conflit sur seconde location**
+  - Given une voiture déjà louée
+  - When j’appelle `POST /api/leases` à nouveau
+  - Then je reçois 409 `CAR_ALREADY_LEASED`.
+- **Retourner une voiture**
+  - Given une location `ACTIVE`
+  - When j’appelle `POST /api/leases/{leaseId}/return`
+  - Then je reçois 200 et la location passe à `RETURNED`, la voiture à `AVAILABLE`.
+- **Retour d’une location inconnue** → 404 `LEASE_NOT_FOUND`.
+
+Ces critères sont couverts par des tests unitaires et d’intégration (voir section Tests).
+
+## Contrat d’API
+
+- **Base URL**: `http://localhost:8080`
+
+### 1) Louer une voiture
+
+- **POST** `/api/leases`
+- **Request body (JSON)**
+```json
+{
+  "carId": "2f0e7c2a-...-...-...",
+  "customerId": "7a3f65f1-...-...-...",
+  "startDate": "2025-11-17",          
+  "endDatePlanned": "2025-11-30"      
+}
+```
+- `carId` et `customerId` obligatoires. `startDate` et `endDatePlanned` optionnels.
+- **Réponses**
+  - 201 Created
+```json
+{
+  "leaseId": "d0b6f2a1-...",
+  "carId": "2f0e7c2a-...",
+  "customerId": "7a3f65f1-...",
+  "status": "ACTIVE",
+  "startDate": "2025-11-17"
+}
+```
+  - 400 `VALIDATION_ERROR` (ex. corps invalide)
+  - 404 `CAR_NOT_FOUND` | `CUSTOMER_NOT_FOUND`
+  - 409 `CAR_ALREADY_LEASED`
+
+### 2) Retourner une voiture
+
+- **POST** `/api/leases/{leaseId}/return`
+- **Request body (JSON)**
+```json
+{
+  "returnDate": "2025-11-20"          
+}
+```
+- `returnDate` optionnel (défaut = aujourd’hui).
+- **Réponses**
+  - 200 OK
+```json
+{
+  "leaseId": "d0b6f2a1-...",
+  "carId": "2f0e7c2a-...",
+  "customerId": "7a3f65f1-...",
+  "status": "RETURNED",
+  "startDate": "2025-11-17",
+  "returnDate": "2025-11-20"
+}
+```
+  - 400 `BAD_REQUEST` | `VALIDATION_ERROR`
+  - 404 `LEASE_NOT_FOUND`
+  - 409 `LEASE_NOT_ACTIVE`
+
+### Format d’erreur uniforme
+
+```json
+{
+  "error": "CAR_ALREADY_LEASED",
+  "message": "Car {carId} is already leased"
+}
+```
+
+## Données, persistance et initialisation
+
+- **H2 en mémoire** (réinitialisé à chaque run)
+  - URL JDBC: `jdbc:h2:mem:carrental;DB_CLOSE_DELAY=-1`
+  - Utilisateur: `sa` / mot de passe: vide
+- **Console H2**: `http://localhost:8080/h2-console`
+  - JDBC URL: `jdbc:h2:mem:carrental`
+  - Requêtes utiles:
+    - `SELECT * FROM CAR;`
+    - `SELECT * FROM CUSTOMER;`
+    - `SELECT * FROM LEASE;`
+- **Jeu de données** (au premier démarrage et si vide)
+  - 3 voitures: `AA-123-AA`, `BB-456-BB`, `CC-789-CC` (statut `AVAILABLE`).
+  - 2 clients: `Alice`, `Bob`.
+
+## Exemples d’utilisation (cURL)
+
+1) Récupérer des identifiants via la console H2
+- Ouvrir `http://localhost:8080/h2-console` → se connecter.
+- Exécuter:
+  - `SELECT id, plate_number, status FROM CAR;`
+  - `SELECT id, name FROM CUSTOMER;`
+- Copier un `carId` (statut `AVAILABLE`) et un `customerId`.
+
+2) Louer la voiture
+```bash
+curl -i -X POST "http://localhost:8080/api/leases" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "carId": "<UUID-CAR>",
+    "customerId": "<UUID-CUSTOMER>",
+    "startDate": "2025-11-17"
+  }'
+```
+- Attendu: `201 Created` + JSON contenant `leaseId`.
+
+3) Rejouer une location sur la même voiture (conflit attendu)
+```bash
+curl -i -X POST "http://localhost:8080/api/leases" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "carId": "<UUID-CAR>",
+    "customerId": "<UUID-CUSTOMER>"
+  }'
+```
+- Attendu: `409 Conflict` avec `error: CAR_ALREADY_LEASED`.
+
+4) Retourner la voiture
+```bash
+curl -i -X POST "http://localhost:8080/api/leases/<UUID-LEASE>/return" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "returnDate": "2025-11-20"
+  }'
+```
+- Attendu: `200 OK` + JSON avec `status: RETURNED`.
+
+## Tests
+
+- **Unitaires (domaine et application)**
+  - `LeaseTest`: vérifie la création de location, les transitions de statut, et les validations de dates.
+  - `LeaseCarUseCaseTest`: succès de location, conflits (voiture déjà louée, location active existante), changements d’état de la voiture.
+  - `ReturnCarUseCaseTest`: succès de retour, location inconnue, location non active.
+- **Intégration (API)**
+  - `LeaseControllerIT`: scénario bout-en-bout location → conflit → retour, et 404 sur retour d’une location inconnue.
+- **Commande**
+  - `mvnw.cmd test`
+
+## Décisions, compromis et limites
+
+- **Verrouillage pessimiste** sur la voiture et la location lors des opérations critiques pour éviter les doubles locations concurrentes.
+- **Validation des invariants** dans le domaine (ex: `endDatePlanned >= startDate`, `returnDate >= startDate`).
+- **H2 en mémoire** pour la simplicité (données volatiles à chaque run).
+- **Limites actuelles**
+  - Pas d’API de lecture (liste des voitures/clients/locations)
+  - Pas de tarification, ni de pénalités, ni de prolongation.
+  - Pas d’authentification/autorisation.
+  - Gestion de fuseaux horaires simplifiée (dates en `LocalDate`).
+
+## Pistes d’amélioration (bonus)
+
+- **API de consultation**: lister voitures disponibles, détails d’une location, historique client.
+- **Règles avancées**: calcul de prix, pénalités de retard, prolongations, cancellations, réservations.
+- **Robustesse**: gestion plus fine des erreurs et des validations (Bean Validation sur davantage de DTOs).
+- **Observabilité**: logs structurés, métriques, traces.
+- **Persistance**: bascule facile vers PostgreSQL/MySQL via Spring Data (profil `prod`).
+- **API Contract First**: description OpenAPI/Swagger + génération client.
+
+## Structure des principaux fichiers
+
+```
+src/main/java/com/kata/app/car/
+├─ api/
+│  ├─ LeaseController.java
+│  ├─ dto/ (LeaseCarRequest, LeaseCarResponse, ReturnCarRequest, ReturnCarResponse)
+│  └─ error/ (GlobalExceptionHandler, ApiErrorResponse)
+├─ application/
+│  ├─ usecase/ (LeaseCarUseCase, ReturnCarUseCase)
+│  ├─ model/ (LeaseCarCommand, LeaseResponse, ReturnCarCommand, ReturnLeaseResponse)
+│  └─ exception/ (...)
+├─ domain/
+│  ├─ model/ (Car, Customer, Lease, CarStatus, LeaseStatus)
+│  └─ repository/ (CarRepository, CustomerRepository, LeaseRepository)
+└─ infrastructure/
+   ├─ jpa/entity/ (CarEntity, CustomerEntity, LeaseEntity)
+   ├─ jpa/repository/ (SpringDataCarRepository, SpringDataCustomerRepository, SpringDataLeaseRepository)
+   ├─ adapter/ (CarRepositoryAdapter, CustomerRepositoryAdapter, LeaseRepositoryAdapter)
+   ├─ mapper/ (CarMapper, CustomerMapper, LeaseMapper)
+   └─ config/ (DataInitializer)
+```
+
+## Conseils d’utilisation et de debug
+
+- **Console H2** pour inspecter les données et récupérer les UUID.
+- **Logs SQL** activés (`spring.jpa.show-sql=true`).
+- **Statuts HTTP** significatifs et payloads d’erreur explicites.
+
+## Licence
+
+Projet fourni dans le cadre d’un exercice technique. Usage pédagogique/d’évaluation.

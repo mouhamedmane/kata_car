@@ -12,6 +12,7 @@ import com.kata.app.car.application.usecase.LeaseCarUseCase;
 import com.kata.app.car.application.usecase.ReturnCarUseCase;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -29,8 +30,7 @@ public class LeaseController {
 	}
 
 	@PostMapping
-	@ResponseStatus(HttpStatus.CREATED)
-	public LeaseCarResponse leaseCar(@Valid @RequestBody LeaseCarRequest request) {
+	public ResponseEntity<LeaseCarResponse> leaseCar(@Valid @RequestBody LeaseCarRequest request) {
 		LeaseCarCommand cmd = new LeaseCarCommand();
 		cmd.carId = request.carId;
 		cmd.customerId = request.customerId;
@@ -44,11 +44,13 @@ public class LeaseController {
 		api.customerId = response.customerId;
 		api.status = response.status;
 		api.startDate = response.startDate;
-		return api;
+		return ResponseEntity.status(HttpStatus.CREATED)
+			.header("Location", "/api/leases/" + api.leaseId)
+			.body(api);
 	}
 
 	@PostMapping("/{leaseId}/return")
-	public ReturnCarResponse returnCar(@PathVariable UUID leaseId, @Valid @RequestBody ReturnCarRequest request) {
+	public ResponseEntity<ReturnCarResponse> returnCar(@PathVariable UUID leaseId, @Valid @RequestBody ReturnCarRequest request) {
 		ReturnCarCommand cmd = new ReturnCarCommand();
 		cmd.leaseId = leaseId;
 		cmd.returnDate = request.returnDate;
@@ -60,7 +62,7 @@ public class LeaseController {
 		api.status = response.status;
 		api.startDate = response.startDate;
 		api.returnDate = response.returnDate;
-		return api;
+		return ResponseEntity.ok(api);
 	}
 }
 

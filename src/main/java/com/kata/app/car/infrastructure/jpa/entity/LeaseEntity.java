@@ -20,6 +20,14 @@ public class LeaseEntity {
 	@Column(name = "customer_id", nullable = false)
 	private UUID customerId;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "car_id", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "fk_lease_car"))
+	private CarEntity car;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "customer_id", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "fk_lease_customer"))
+	private CustomerEntity customer;
+
 	@Column(name = "start_date", nullable = false)
 	private LocalDate startDate;
 
@@ -55,6 +63,22 @@ public class LeaseEntity {
 
 	public void setCustomerId(UUID customerId) {
 		this.customerId = customerId;
+	}
+
+	public CarEntity getCar() {
+		return car;
+	}
+
+	public void setCar(CarEntity car) {
+		this.car = car;
+	}
+
+	public CustomerEntity getCustomer() {
+		return customer;
+	}
+
+	public void setCustomer(CustomerEntity customer) {
+		this.customer = customer;
 	}
 
 	public LocalDate getStartDate() {

@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public interface LeaseRepository {
 	Optional<Lease> findById(UUID id);
+	Optional<Lease> findByIdForUpdate(UUID id);
 	Optional<Lease> findActiveByCarId(UUID carId);
 	Lease save(Lease lease);
 }
