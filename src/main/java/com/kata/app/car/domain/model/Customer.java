@@ -8,8 +8,8 @@ public class Customer {
 	private final String name;
 
 	public Customer(UUID id, String name) {
-		this.id = Objects.requireNonNull(id, "id must not be null");
-		this.name = Objects.requireNonNull(name, "name must not be null");
+		this.id = Objects.requireNonNull(id, "id ne doit pas être nul");
+		this.name = Objects.requireNonNull(name, "name ne doit pas être nul");
 	}
 
 	public UUID getId() {

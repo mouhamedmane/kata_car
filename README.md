@@ -104,8 +104,8 @@ Notes:
     - Modèles d’E/S pour l’application: `LeaseCarCommand`, `LeaseResponse`, `ReturnCarCommand`, `ReturnLeaseResponse`.
     - Exceptions applicatives: `CarNotFoundException`, `CustomerNotFoundException`, `LeaseNotFoundException`, `LeaseNotActiveException`, `CarAlreadyLeasedException`.
   - **api/**
-    - Contrôleur REST: `LeaseController`.
-    - DTO d’API: `LeaseCarRequest`, `LeaseCarResponse`, `ReturnCarRequest`, `ReturnCarResponse`.
+  - Contrôleurs REST: `LeaseController`, `CarController`.
+  - DTO d’API: `LeaseCarRequest`, `LeaseCarResponse`, `ReturnCarRequest`, `ReturnCarResponse`, `CarResponse`, `LeaseDetailsResponse`.
     - Gestion globale des erreurs: `GlobalExceptionHandler` → codes HTTP cohérents + payload d’erreur uniforme (`ApiErrorResponse`).
   - **infrastructure/**
     - JPA Entities: `CarEntity`, `CustomerEntity`, `LeaseEntity`.
@@ -124,6 +124,7 @@ Notes:
 ## Règles métier (MVP)
 
 - **Louer une voiture**
+
   - **Pré-conditions**
     - La voiture existe.
     - Le client existe.
@@ -177,17 +178,20 @@ Ces critères sont couverts par des tests unitaires et d’intégration (voir se
 
 - **POST** `/api/leases`
 - **Request body (JSON)**
+
 ```json
 {
   "carId": "2f0e7c2a-...-...-...",
   "customerId": "7a3f65f1-...-...-...",
-  "startDate": "2025-11-17",          
-  "endDatePlanned": "2025-11-30"      
+  "startDate": "2025-11-17",
+  "endDatePlanned": "2025-11-30"
 }
 ```
+
 - `carId` et `customerId` obligatoires. `startDate` et `endDatePlanned` optionnels.
 - **Réponses**
   - 201 Created
+
 ```json
 {
   "leaseId": "d0b6f2a1-...",
@@ -197,22 +201,26 @@ Ces critères sont couverts par des tests unitaires et d’intégration (voir se
   "startDate": "2025-11-17"
 }
 ```
-  - 400 `VALIDATION_ERROR` (ex. corps invalide)
-  - 404 `CAR_NOT_FOUND` | `CUSTOMER_NOT_FOUND`
-  - 409 `CAR_ALREADY_LEASED`
+
+- 400 `VALIDATION_ERROR` (ex. corps invalide)
+- 404 `CAR_NOT_FOUND` | `CUSTOMER_NOT_FOUND`
+- 409 `CAR_ALREADY_LEASED`
 
 ### 2) Retourner une voiture
 
 - **POST** `/api/leases/{leaseId}/return`
 - **Request body (JSON)**
+
 ```json
 {
-  "returnDate": "2025-11-20"          
+  "returnDate": "2025-11-20"
 }
 ```
+
 - `returnDate` optionnel (défaut = aujourd’hui).
 - **Réponses**
   - 200 OK
+
 ```json
 {
   "leaseId": "d0b6f2a1-...",
@@ -223,16 +231,57 @@ Ces critères sont couverts par des tests unitaires et d’intégration (voir se
   "returnDate": "2025-11-20"
 }
 ```
-  - 400 `BAD_REQUEST` | `VALIDATION_ERROR`
-  - 404 `LEASE_NOT_FOUND`
-  - 409 `LEASE_NOT_ACTIVE`
+
+- 400 `BAD_REQUEST` | `VALIDATION_ERROR`
+- 404 `LEASE_NOT_FOUND`
+- 409 `LEASE_NOT_ACTIVE`
+
+### 3) Lister les voitures (filtrage par statut possible)
+
+- **GET** `/api/cars`
+- Paramètres de requête (optionnels)
+  - `status` ∈ { `AVAILABLE`, `LEASED` }
+- **Réponse (200)**
+
+```json
+[
+  { "id": "2f0e7c2a-...", "plateNumber": "AA-123-AA", "status": "AVAILABLE" },
+  { "id": "7bbf0d9c-...", "plateNumber": "BB-456-BB", "status": "LEASED" }
+]
+```
+
+### 4) Détails d’une voiture
+
+- **GET** `/api/cars/{carId}`
+- **Réponse (200)**
+
+```json
+{ "id": "2f0e7c2a-...", "plateNumber": "AA-123-AA", "status": "AVAILABLE" }
+```
+
+### 5) Consulter une location
+
+- **GET** `/api/leases/{leaseId}`
+- **Réponse (200)**
+
+```json
+{
+  "leaseId": "d0b6f2a1-...",
+  "carId": "2f0e7c2a-...",
+  "customerId": "7a3f65f1-...",
+  "status": "ACTIVE",
+  "startDate": "2025-11-17",
+  "endDatePlanned": "2025-11-30",
+  "returnDate": null
+}
+```
 
 ### Format d’erreur uniforme
 
 ```json
 {
   "error": "CAR_ALREADY_LEASED",
-  "message": "Car {carId} is already leased"
+  "message": "La voiture {carId} est déjà louée"
 }
 ```
 
@@ -253,14 +302,14 @@ Ces critères sont couverts par des tests unitaires et d’intégration (voir se
 
 ## Exemples d’utilisation (cURL)
 
-1) Récupérer des identifiants via la console H2
-- Ouvrir `http://localhost:8080/h2-console` → se connecter.
-- Exécuter:
-  - `SELECT id, plate_number, status FROM CAR;`
-  - `SELECT id, name FROM CUSTOMER;`
-- Copier un `carId` (statut `AVAILABLE`) et un `customerId`.
+1. Lister les voitures disponibles (API)
 
-2) Louer la voiture
+```bash
+curl -s "http://localhost:8080/api/cars?status=AVAILABLE" | jq
+```
+
+2. Louer la voiture
+
 ```bash
 curl -i -X POST "http://localhost:8080/api/leases" \
   -H "Content-Type: application/json" \
@@ -270,9 +319,11 @@ curl -i -X POST "http://localhost:8080/api/leases" \
     "startDate": "2025-11-17"
   }'
 ```
+
 - Attendu: `201 Created` + JSON contenant `leaseId`.
 
-3) Rejouer une location sur la même voiture (conflit attendu)
+3. Rejouer une location sur la même voiture (conflit attendu)
+
 ```bash
 curl -i -X POST "http://localhost:8080/api/leases" \
   -H "Content-Type: application/json" \
@@ -281,9 +332,11 @@ curl -i -X POST "http://localhost:8080/api/leases" \
     "customerId": "<UUID-CUSTOMER>"
   }'
 ```
+
 - Attendu: `409 Conflict` avec `error: CAR_ALREADY_LEASED`.
 
-4) Retourner la voiture
+4. Retourner la voiture
+
 ```bash
 curl -i -X POST "http://localhost:8080/api/leases/<UUID-LEASE>/return" \
   -H "Content-Type: application/json" \
@@ -291,7 +344,14 @@ curl -i -X POST "http://localhost:8080/api/leases/<UUID-LEASE>/return" \
     "returnDate": "2025-11-20"
   }'
 ```
+
 - Attendu: `200 OK` + JSON avec `status: RETURNED`.
+
+5. Consulter la location créée (vérifier le header Location renvoyé par le POST)
+
+```bash
+curl -s "http://localhost:8080/api/leases/<UUID-LEASE>" | jq
+```
 
 ## Tests
 
@@ -310,7 +370,7 @@ curl -i -X POST "http://localhost:8080/api/leases/<UUID-LEASE>/return" \
 - **Validation des invariants** dans le domaine (ex: `endDatePlanned >= startDate`, `returnDate >= startDate`).
 - **H2 en mémoire** pour la simplicité (données volatiles à chaque run).
 - **Limites actuelles**
-  - Pas d’API de lecture (liste des voitures/clients/locations)
+  - API de lecture partielle: pas encore de listing des leases/clients
   - Pas de tarification, ni de pénalités, ni de prolongation.
   - Pas d’authentification/autorisation.
   - Gestion de fuseaux horaires simplifiée (dates en `LocalDate`).
@@ -323,29 +383,6 @@ curl -i -X POST "http://localhost:8080/api/leases/<UUID-LEASE>/return" \
 - **Observabilité**: logs structurés, métriques, traces.
 - **Persistance**: bascule facile vers PostgreSQL/MySQL via Spring Data (profil `prod`).
 - **API Contract First**: description OpenAPI/Swagger + génération client.
-
-## Structure des principaux fichiers
-
-```
-src/main/java/com/kata/app/car/
-├─ api/
-│  ├─ LeaseController.java
-│  ├─ dto/ (LeaseCarRequest, LeaseCarResponse, ReturnCarRequest, ReturnCarResponse)
-│  └─ error/ (GlobalExceptionHandler, ApiErrorResponse)
-├─ application/
-│  ├─ usecase/ (LeaseCarUseCase, ReturnCarUseCase)
-│  ├─ model/ (LeaseCarCommand, LeaseResponse, ReturnCarCommand, ReturnLeaseResponse)
-│  └─ exception/ (...)
-├─ domain/
-│  ├─ model/ (Car, Customer, Lease, CarStatus, LeaseStatus)
-│  └─ repository/ (CarRepository, CustomerRepository, LeaseRepository)
-└─ infrastructure/
-   ├─ jpa/entity/ (CarEntity, CustomerEntity, LeaseEntity)
-   ├─ jpa/repository/ (SpringDataCarRepository, SpringDataCustomerRepository, SpringDataLeaseRepository)
-   ├─ adapter/ (CarRepositoryAdapter, CustomerRepositoryAdapter, LeaseRepositoryAdapter)
-   ├─ mapper/ (CarMapper, CustomerMapper, LeaseMapper)
-   └─ config/ (DataInitializer)
-```
 
 ## Conseils d’utilisation et de debug
 

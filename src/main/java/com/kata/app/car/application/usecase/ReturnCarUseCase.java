@@ -27,16 +27,16 @@ public class ReturnCarUseCase {
 
 	public ReturnLeaseResponse returnByLeaseId(ReturnCarCommand command) {
 		Lease lease = leaseRepository.findByIdForUpdate(command.leaseId)
-			.orElseThrow(() -> new LeaseNotFoundException("Lease %s not found".formatted(command.leaseId)));
+			.orElseThrow(() -> new LeaseNotFoundException("Contrat de location %s introuvable".formatted(command.leaseId)));
 
 		if (lease.getStatus() != LeaseStatus.ACTIVE) {
-			throw new LeaseNotActiveException("Lease %s is not active".formatted(command.leaseId));
+			throw new LeaseNotActiveException("Le contrat de location %s n'est pas actif".formatted(command.leaseId));
 		}
 
 		lease.returnLease(command.returnDate);
 
 		Car car = carRepository.findByIdForUpdate(lease.getCarId())
-			.orElseThrow(() -> new CarNotFoundException("Car %s for lease %s not found".formatted(lease.getCarId(), lease.getId())));
+			.orElseThrow(() -> new CarNotFoundException("Voiture %s pour le contrat de location %s introuvable".formatted(lease.getCarId(), lease.getId())));
 
 		car.markAvailable();
 

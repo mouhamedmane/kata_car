@@ -23,8 +23,8 @@ public class LeaseCarUseCase {
 	private final LeaseRepository leaseRepository;
 
 	public LeaseCarUseCase(CarRepository carRepository,
-						   CustomerRepository customerRepository,
-						   LeaseRepository leaseRepository) {
+					   CustomerRepository customerRepository,
+					   LeaseRepository leaseRepository) {
 		this.carRepository = carRepository;
 		this.customerRepository = customerRepository;
 		this.leaseRepository = leaseRepository;
@@ -32,18 +32,18 @@ public class LeaseCarUseCase {
 
 	public LeaseResponse lease(LeaseCarCommand command) {
 		Car car = carRepository.findByIdForUpdate(command.carId)
-			.orElseThrow(() -> new CarNotFoundException("Car %s not found".formatted(command.carId)));
+			.orElseThrow(() -> new CarNotFoundException("Voiture %s introuvable".formatted(command.carId)));
 
 		customerRepository.findById(command.customerId)
-			.orElseThrow(() -> new CustomerNotFoundException("Customer %s not found".formatted(command.customerId)));
+			.orElseThrow(() -> new CustomerNotFoundException("Client %s introuvable".formatted(command.customerId)));
 
 		leaseRepository.findActiveByCarId(car.getId())
 			.ifPresent(existing -> {
-				throw new CarAlreadyLeasedException("Car %s already has an active lease %s".formatted(car.getId(), existing.getId()));
+				throw new CarAlreadyLeasedException("La voiture %s a déjà un contrat de location actif %s".formatted(car.getId(), existing.getId()));
 			});
 
 		if (car.getStatus() != CarStatus.AVAILABLE) {
-			throw new CarAlreadyLeasedException("Car %s is already leased".formatted(car.getId()));
+			throw new CarAlreadyLeasedException("La voiture %s est déjà louée".formatted(car.getId()));
 		}
 
 		Lease lease = Lease.start(car.getId(), command.customerId, command.startDate, command.endDatePlanned);

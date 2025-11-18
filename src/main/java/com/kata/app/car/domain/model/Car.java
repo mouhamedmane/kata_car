@@ -9,9 +9,9 @@ public class Car {
 	private CarStatus status;
 
 	public Car(UUID id, String plateNumber, CarStatus status) {
-		this.id = Objects.requireNonNull(id, "id must not be null");
-		this.plateNumber = Objects.requireNonNull(plateNumber, "plateNumber must not be null");
-		this.status = Objects.requireNonNull(status, "status must not be null");
+		this.id = Objects.requireNonNull(id, "id ne doit pas être nul");
+		this.plateNumber = Objects.requireNonNull(plateNumber, "plateNumber ne doit pas être nul");
+		this.status = Objects.requireNonNull(status, "status ne doit pas être nul");
 	}
 
 	public UUID getId() {
@@ -28,7 +28,7 @@ public class Car {
 
 	public void markLeased() {
 		if (this.status == CarStatus.LEASED) {
-			throw new IllegalStateException("Car is already leased");
+			throw new IllegalStateException("La voiture est déjà louée");
 		}
 		this.status = CarStatus.LEASED;
 	}

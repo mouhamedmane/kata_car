@@ -14,13 +14,13 @@ public class Lease {
 	private LeaseStatus status;
 
 	private Lease(UUID id, UUID carId, UUID customerId, LocalDate startDate, LocalDate endDatePlanned, LocalDate returnDate, LeaseStatus status) {
-		this.id = Objects.requireNonNull(id, "id must not be null");
-		this.carId = Objects.requireNonNull(carId, "carId must not be null");
-		this.customerId = Objects.requireNonNull(customerId, "customerId must not be null");
-		this.startDate = Objects.requireNonNull(startDate, "startDate must not be null");
+		this.id = Objects.requireNonNull(id, "id ne doit pas être nul");
+		this.carId = Objects.requireNonNull(carId, "carId ne doit pas être nul");
+		this.customerId = Objects.requireNonNull(customerId, "customerId ne doit pas être nul");
+		this.startDate = Objects.requireNonNull(startDate, "startDate ne doit pas être nul");
 		this.endDatePlanned = endDatePlanned;
 		this.returnDate = returnDate;
-		this.status = Objects.requireNonNull(status, "status must not be null");
+		this.status = Objects.requireNonNull(status, "status ne doit pas être nul");
 	}
 
 	public static Lease rehydrate(UUID id, UUID carId, UUID customerId, LocalDate startDate, LocalDate endDatePlanned, LocalDate returnDate, LeaseStatus status) {
@@ -31,18 +31,18 @@ public class Lease {
 		UUID leaseId = UUID.randomUUID();
 		LocalDate effectiveStart = startDate != null ? startDate : LocalDate.now();
 		if (endDatePlanned != null && endDatePlanned.isBefore(effectiveStart)) {
-			throw new IllegalArgumentException("endDatePlanned cannot be before startDate");
+			throw new IllegalArgumentException("endDatePlanned ne peut pas être antérieure à startDate");
 		}
 		return new Lease(leaseId, carId, customerId, effectiveStart, endDatePlanned, null, LeaseStatus.ACTIVE);
 	}
 
 	public void returnLease(LocalDate returnDate) {
 		if (this.status != LeaseStatus.ACTIVE) {
-			throw new IllegalStateException("Lease is not active");
+			throw new IllegalStateException("La location n'est pas active");
 		}
 		LocalDate effectiveReturn = returnDate != null ? returnDate : LocalDate.now();
 		if (effectiveReturn.isBefore(this.startDate)) {
-			throw new IllegalArgumentException("returnDate cannot be before startDate");
+			throw new IllegalArgumentException("returnDate ne peut pas être antérieure à startDate");
 		}
 		this.returnDate = effectiveReturn;
 		this.status = LeaseStatus.RETURNED;

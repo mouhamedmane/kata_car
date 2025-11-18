@@ -43,7 +43,7 @@ class ReturnCarUseCaseTest {
 		car.markLeased();
 		Lease lease = Lease.start(carId, customerId, LocalDate.now().minusDays(1), null);
 
-		when(leaseRepository.findById(lease.getId())).thenReturn(Optional.of(lease));
+		when(leaseRepository.findByIdForUpdate(lease.getId())).thenReturn(Optional.of(lease));
 		when(carRepository.findByIdForUpdate(carId)).thenReturn(Optional.of(car));
 
 		ReturnCarCommand cmd = new ReturnCarCommand();
@@ -61,6 +61,8 @@ class ReturnCarUseCaseTest {
 		ReturnCarCommand cmd = new ReturnCarCommand();
 		cmd.leaseId = UUID.randomUUID();
 
+		when(leaseRepository.findByIdForUpdate(cmd.leaseId)).thenReturn(Optional.empty());
+
 		assertThatThrownBy(() -> useCase.returnByLeaseId(cmd))
 			.isInstanceOf(LeaseNotFoundException.class);
 	}
@@ -72,7 +74,7 @@ class ReturnCarUseCaseTest {
 		Lease lease = Lease.start(carId, customerId, LocalDate.now().minusDays(3), null);
 		lease.returnLease(LocalDate.now().minusDays(1));
 
-		when(leaseRepository.findById(lease.getId())).thenReturn(Optional.of(lease));
+		when(leaseRepository.findByIdForUpdate(lease.getId())).thenReturn(Optional.of(lease));
 
 		ReturnCarCommand cmd = new ReturnCarCommand();
 		cmd.leaseId = lease.getId();

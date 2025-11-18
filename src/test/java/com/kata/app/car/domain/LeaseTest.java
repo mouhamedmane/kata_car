@@ -73,7 +73,7 @@ class LeaseTest {
 
 		assertThatThrownBy(() -> lease.returnLease(ret))
 			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessageContaining("before startDate");
+			.hasMessageContaining("antérieure à startDate");
 	}
 }
 

@@ -57,17 +57,17 @@ public class GlobalExceptionHandler {
 				.map(this::formatFieldError)
 				.collect(Collectors.joining("; "));
 			if (details.isEmpty()) {
-				details = "Invalid request payload";
+				details = "Corps de requête invalide";
 			}
 		} else if (ex instanceof ConstraintViolationException cve) {
 			details = cve.getConstraintViolations().stream()
 				.map(v -> v.getPropertyPath() + ": " + v.getMessage())
 				.collect(Collectors.joining("; "));
 			if (details.isEmpty()) {
-				details = "Constraint violation";
+				details = "Violation de contrainte";
 			}
 		} else {
-			details = "Validation error";
+			details = "Erreur de validation";
 		}
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 			.body(new ApiErrorResponse("VALIDATION_ERROR", details));
@@ -76,17 +76,17 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler({ MethodArgumentTypeMismatchException.class, IllegalArgumentException.class })
 	public ResponseEntity<ApiErrorResponse> handleBadRequest(Exception ex) {
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-			.body(new ApiErrorResponse("BAD_REQUEST", "Invalid request"));
+			.body(new ApiErrorResponse("BAD_REQUEST", "Requête invalide"));
 	}
 
 	@ExceptionHandler(IllegalStateException.class)
 	public ResponseEntity<ApiErrorResponse> handleIllegalState(IllegalStateException ex) {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
-			.body(new ApiErrorResponse("ILLEGAL_STATE", "Operation not allowed in current state"));
+			.body(new ApiErrorResponse("ILLEGAL_STATE", "Opération non autorisée dans l'état actuel"));
 	}
 
 	private String formatFieldError(FieldError error) {
-		return error.getField() + ": " + (error.getDefaultMessage() != null ? error.getDefaultMessage() : "invalid");
+		return error.getField() + ": " + (error.getDefaultMessage() != null ? error.getDefaultMessage() : "invalide");
 	}
 }
 

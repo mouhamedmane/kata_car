@@ -2,14 +2,18 @@ package com.kata.app.car.api;
 
 import com.kata.app.car.api.dto.LeaseCarRequest;
 import com.kata.app.car.api.dto.LeaseCarResponse;
+import com.kata.app.car.api.dto.LeaseDetailsResponse;
 import com.kata.app.car.api.dto.ReturnCarRequest;
 import com.kata.app.car.api.dto.ReturnCarResponse;
+import com.kata.app.car.application.exception.LeaseNotFoundException;
 import com.kata.app.car.application.model.LeaseCarCommand;
 import com.kata.app.car.application.model.LeaseResponse;
 import com.kata.app.car.application.model.ReturnCarCommand;
 import com.kata.app.car.application.model.ReturnLeaseResponse;
 import com.kata.app.car.application.usecase.LeaseCarUseCase;
 import com.kata.app.car.application.usecase.ReturnCarUseCase;
+import com.kata.app.car.domain.model.Lease;
+import com.kata.app.car.domain.repository.LeaseRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,10 +27,12 @@ public class LeaseController {
 
 	private final LeaseCarUseCase leaseCarUseCase;
 	private final ReturnCarUseCase returnCarUseCase;
+	private final LeaseRepository leaseRepository;
 
-	public LeaseController(LeaseCarUseCase leaseCarUseCase, ReturnCarUseCase returnCarUseCase) {
+	public LeaseController(LeaseCarUseCase leaseCarUseCase, ReturnCarUseCase returnCarUseCase, LeaseRepository leaseRepository) {
 		this.leaseCarUseCase = leaseCarUseCase;
 		this.returnCarUseCase = returnCarUseCase;
+		this.leaseRepository = leaseRepository;
 	}
 
 	@PostMapping
@@ -47,6 +53,21 @@ public class LeaseController {
 		return ResponseEntity.status(HttpStatus.CREATED)
 			.header("Location", "/api/leases/" + api.leaseId)
 			.body(api);
+	}
+
+	@GetMapping("/{leaseId}")
+	public ResponseEntity<LeaseDetailsResponse> getLease(@PathVariable UUID leaseId) {
+		Lease lease = leaseRepository.findById(leaseId)
+			.orElseThrow(() -> new LeaseNotFoundException("Lease %s not found".formatted(leaseId)));
+		LeaseDetailsResponse api = new LeaseDetailsResponse();
+		api.leaseId = lease.getId();
+		api.carId = lease.getCarId();
+		api.customerId = lease.getCustomerId();
+		api.status = lease.getStatus();
+		api.startDate = lease.getStartDate();
+		api.endDatePlanned = lease.getEndDatePlanned();
+		api.returnDate = lease.getReturnDate();
+		return ResponseEntity.ok(api);
 	}
 
 	@PostMapping("/{leaseId}/return")
