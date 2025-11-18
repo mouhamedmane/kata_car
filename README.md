@@ -104,8 +104,8 @@ Notes:
     - Modèles d’E/S pour l’application: `LeaseCarCommand`, `LeaseResponse`, `ReturnCarCommand`, `ReturnLeaseResponse`.
     - Exceptions applicatives: `CarNotFoundException`, `CustomerNotFoundException`, `LeaseNotFoundException`, `LeaseNotActiveException`, `CarAlreadyLeasedException`.
   - **api/**
-  - Contrôleurs REST: `LeaseController`, `CarController`.
-  - DTO d’API: `LeaseCarRequest`, `LeaseCarResponse`, `ReturnCarRequest`, `ReturnCarResponse`, `CarResponse`, `LeaseDetailsResponse`.
+  - Contrôleurs REST: `LeaseController`, `CarController`, `CustomerController`.
+  - DTO d’API: `LeaseCarRequest`, `LeaseCarResponse`, `ReturnCarRequest`, `ReturnCarResponse`, `CarResponse`, `LeaseDetailsResponse`, `CustomerResponse`.
     - Gestion globale des erreurs: `GlobalExceptionHandler` → codes HTTP cohérents + payload d’erreur uniforme (`ApiErrorResponse`).
   - **infrastructure/**
     - JPA Entities: `CarEntity`, `CustomerEntity`, `LeaseEntity`.
@@ -276,6 +276,27 @@ Ces critères sont couverts par des tests unitaires et d’intégration (voir se
 }
 ```
 
+### 6) Lister les clients
+
+- **GET** `/api/customers`
+- **Réponse (200)**
+
+```json
+[
+  { "id": "7a3f65f1-...", "name": "Alice" },
+  { "id": "9c2d8b44-...", "name": "Bob" }
+]
+```
+
+### 7) Détails d’un client
+
+- **GET** `/api/customers/{customerId}`
+- **Réponse (200)**
+
+```json
+{ "id": "7a3f65f1-...", "name": "Alice" }
+```
+
 ### Format d’erreur uniforme
 
 ```json
@@ -353,6 +374,12 @@ curl -i -X POST "http://localhost:8080/api/leases/<UUID-LEASE>/return" \
 curl -s "http://localhost:8080/api/leases/<UUID-LEASE>" | jq
 ```
 
+6. Lister les clients
+
+```bash
+curl -s "http://localhost:8080/api/customers" | jq
+```
+
 ## Tests
 
 - **Unitaires (domaine et application)**
@@ -370,7 +397,7 @@ curl -s "http://localhost:8080/api/leases/<UUID-LEASE>" | jq
 - **Validation des invariants** dans le domaine (ex: `endDatePlanned >= startDate`, `returnDate >= startDate`).
 - **H2 en mémoire** pour la simplicité (données volatiles à chaque run).
 - **Limites actuelles**
-  - API de lecture partielle: pas encore de listing des leases/clients
+  - API de lecture partielle: pas encore de listing des leases
   - Pas de tarification, ni de pénalités, ni de prolongation.
   - Pas d’authentification/autorisation.
   - Gestion de fuseaux horaires simplifiée (dates en `LocalDate`).

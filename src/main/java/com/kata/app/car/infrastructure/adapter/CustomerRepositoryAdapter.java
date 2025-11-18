@@ -6,6 +6,7 @@ import com.kata.app.car.infrastructure.jpa.repository.SpringDataCustomerReposito
 import com.kata.app.car.infrastructure.mapper.CustomerMapper;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +22,13 @@ public class CustomerRepositoryAdapter implements CustomerRepository {
 	@Override
 	public Optional<Customer> findById(UUID id) {
 		return springDataCustomerRepository.findById(id).map(CustomerMapper::toDomain);
+	}
+
+	@Override
+	public List<Customer> findAll() {
+		return springDataCustomerRepository.findAll().stream()
+			.map(CustomerMapper::toDomain)
+			.toList();
 	}
 }
 
